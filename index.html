@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>彼岸花 · Lycoris</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Cinzel:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0308;
+    color: #e8d5d5;
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  canvas#petals {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+  }
+
+  .stars {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(ellipse at 20% 30%, #1a0a1a 0%, #0a0308 60%);
+    z-index: -1;
+  }
+
+  .site {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh;
+    padding: 60px 20px 80px;
+  }
+
+  /* ══════════════════════════════
+     HEADER
+     ══════════════════════════════
+     → Modifiez h1 pour changer le titre principal
+     → Modifiez .sub pour changer le sous-titre
+  */
+  .header {
+    text-align: center;
+    margin-bottom: 60px;
+    animation: fadeUp 2s ease both;
+  }
+  .header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: #c7314a;                        /* ← couleur principale, modifiable */
+    text-shadow: 0 0 40px #c7314a88, 0 0 80px #c7314a44;
+    margin-bottom: 12px;
+  }
+  .header p.sub {
+    font-size: clamp(14px, 2.5vw, 18px);
+    font-style: italic;
+    color: #b8909a;
+    letter-spacing: 0.06em;
+  }
+
+  .divider {
+    width: 200px; height: 1px;
+    background: linear-gradient(90deg, transparent, #c7314a88, transparent);
+    margin: 30px auto;
+  }
+
+  /* ══════════════════════════════
+     MUSIC PLAYER
+     ══════════════════════════════
+     → Modifiez le tableau `songs` dans le JS pour changer les titres
+     → Le player simule la lecture (pas de vrai fichier audio)
+     → Pour un vrai audio : changez audio.src = "URL_DU_FICHIER.mp3"
+  */
+  .player {
+    background: rgba(30, 8, 16, 0.7);
+    border: 1px solid #c7314a44;
+    border-radius: 16px;
+    padding: 28px 36px;
+    max-width: 460px; width: 100%;
+    margin-bottom: 48px;
+    animation: fadeUp 2.3s ease both;
+    backdrop-filter: blur(8px);
+    text-align: center;
+  }
+  .player-title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px; letter-spacing: 0.18em;
+    color: #c7314a; margin-bottom: 18px; text-transform: uppercase;
+  }
+  .song-name { font-size: 22px; font-style: italic; color: #f0d8de; margin-bottom: 6px; }
+  .artist { font-size: 14px; color: #9a7080; margin-bottom: 22px; letter-spacing: 0.04em; }
+
+  .progress-bar {
+    width: 100%; height: 3px; background: #3a1520; border-radius: 2px;
+    margin-bottom: 16px; position: relative; cursor: pointer;
+  }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #8b1a2a, #c7314a);
+    border-radius: 2px; transition: width 0.3s;
+  }
+  .time-row {
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: #7a5060; margin-bottom: 18px; font-family: monospace;
+  }
+  .controls {
+    display: flex; align-items: center; justify-content: center; gap: 20px;
+  }
+  .btn-ctrl {
+    background: none; border: none; cursor: pointer;
+    color: #c7314a; font-size: 22px;
+    transition: transform 0.2s, color 0.2s; line-height: 1;
+  }
+  .btn-ctrl:hover { color: #e85070; transform: scale(1.15); }
+  .btn-play {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 2px solid #c7314a;
+    background: rgba(199, 49, 74, 0.12);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.25s; color: #c7314a; font-size: 20px;
+  }
+  .btn-play:hover { background: rgba(199, 49, 74, 0.28); transform: scale(1.08); }
+
+  .visualizer {
+    display: flex; align-items: flex-end; justify-content: center;
+    gap: 3px; height: 28px; margin-top: 18px;
+  }
+  .bar {
+    width: 4px; border-radius: 2px;
+    background: #c7314a; height: 4px; transition: height 0.15s;
+  }
+  .playing .bar { animation: pulse var(--sp, 0.6s) ease-in-out infinite alternate; }
+  @keyframes pulse { 0% { height: 4px; } 100% { height: var(--h, 20px); } }
+
+  /* ══════════════════════════════
+     FLOWER CARDS
+     ══════════════════════════════
+     → Modifiez <h3> pour changer les titres des cartes
+     → Modifiez <p> pour changer les descriptions
+     → Modifiez les SVG pour changer les fleurs
+  */
+  .flowers-section {
+    max-width: 700px; width: 100%;
+    margin-bottom: 56px;
+    animation: fadeUp 2.6s ease both;
+  }
+  .section-label {
+    font-family: 'Cinzel', serif; font-size: 12px;
+    letter-spacing: 0.22em; color: #c7314a88;
+    text-transform: uppercase; text-align: center;
+    margin-bottom: 28px;
+  }
+  .flowers-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .flower-card {
+    background: rgba(20, 5, 12, 0.7);
+    border: 1px solid #c7314a22;
+    border-radius: 12px; padding: 20px 16px; text-align: center;
+    transition: border-color 0.3s, transform 0.3s; cursor: default;
+  }
+  .flower-card:hover { border-color: #c7314a88; transform: translateY(-4px); }
+  .flower-svg { display: block; margin: 0 auto 12px; filter: drop-shadow(0 0 8px #c7314a77); }
+  .flower-card h3 {
+    font-family: 'Cinzel', serif; font-size: 13px;
+    color: #c7314a; letter-spacing: 0.1em; margin-bottom: 6px;
+  }
+  .flower-card p { font-size: 13px; font-style: italic; color: #9a7080; line-height: 1.5; }
+
+  /* ══════════════════════════════
+     LETTER / MESSAGE
+     ══════════════════════════════
+     → Modifiez .letter-greeting pour la salutation
+     → Modifiez .letter-body pour le contenu du message
+     → Les <span class="highlight"> sont en rouge
+     → Modifiez .letter-sign pour la signature
+  */
+  .letter {
+    max-width: 500px; width: 100%;
+    background: rgba(12, 4, 8, 0.85);
+    border: 1px solid #c7314a33;
+    border-radius: 4px;
+    padding: 40px 44px;
+    position: relative;
+    animation: fadeUp 3s ease both;
+    backdrop-filter: blur(6px);
+  }
+  .letter::before {
+    content: ''; position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px;
+    border: 1px solid #c7314a18; border-radius: 3px; pointer-events: none;
+  }
+  .letter-greeting {
+    font-size: 13px; letter-spacing: 0.12em;
+    color: #9a7080; margin-bottom: 18px;
+    font-family: 'Cinzel', serif; text-transform: uppercase;
+  }
+  .letter-body {
+    font-size: clamp(15px, 2.2vw, 18px);
+    line-height: 1.9; color: #e8d5d5; font-style: italic; margin-bottom: 28px;
+  }
+  .letter-body span.highlight {
+    color: #c7314a; font-style: normal;
+    text-shadow: 0 0 20px #c7314a66;
+  }
+  .letter-sign {
+    font-family: 'Cinzel', serif; font-size: 14px;
+    letter-spacing: 0.1em; color: #c7314a88; text-align: right;
+  }
+  .wax-seal {
+    position: absolute; bottom: -22px; right: 32px;
+    width: 44px; height: 44px;
+    background: radial-gradient(circle, #c7314a, #8b1a2a);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; box-shadow: 0 0 16px #c7314a88;
+  }
+
+  /* ══════════════════════════════
+     EMOTION TAGS
+     ══════════════════════════════
+     → Ajoutez / supprimez des <span class="emotion-tag e1|e2|e3"> pour les émotions
+     → e1 = rouge, e2 = rose, e3 = blanc rosé
+  */
+  .emotions {
+    max-width: 600px; width: 100%;
+    margin-top: 64px;
+    animation: fadeUp 3.3s ease both;
+  }
+  .emotion-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; }
+  .emotion-tag {
+    padding: 7px 18px; border: 1px solid; border-radius: 40px;
+    font-size: 13px; letter-spacing: 0.06em; font-style: italic;
+    cursor: default; transition: all 0.3s;
+  }
+  .emotion-tag:hover { transform: scale(1.06); }
+  .e1 { color: #c7314a; border-color: #c7314a55; background: rgba(199,49,74,0.06); }
+  .e1:hover { background: rgba(199,49,74,0.14); }
+  .e2 { color: #b890a8; border-color: #b890a855; background: rgba(184,144,168,0.06); }
+  .e2:hover { background: rgba(184,144,168,0.14); }
+  .e3 { color: #e8c8c8; border-color: #e8c8c844; background: rgba(232,200,200,0.06); }
+  .e3:hover { background: rgba(232,200,200,0.14); }
+
+  /* Footer */
+  .footer {
+    margin-top: 70px; text-align: center;
+    font-family: 'Cinzel', serif; font-size: 11px;
+    letter-spacing: 0.2em; color: #4a2030;
+    animation: fadeUp 3.6s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 500px) {
+    .flowers-grid { grid-template-columns: repeat(2, 1fr); }
+    .letter { padding: 28px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stars"></div>
+<canvas id="petals"></canvas>
+
+<div class="site">
+
+  <!-- ════════════════════════════
+       HEADER — modifiez ici
+  ════════════════════════════ -->
+  <header class="header">
+    <h1>彼岸花 · Lycoris</h1>
+    <p class="sub">Ma zahraee qui fleurit quand l'âme s'en va </p>
+    <div class="divider"></div>
+  </header>
+
+  <!-- ════════════════════════════
+       MUSIC PLAYER
+       Les titres des chansons sont dans le JS (tableau `songs`)
+  ════════════════════════════ -->
+  <div class="player" id="player">
+    <div class="player-title">♩ ayayayy
+    </div>
+    <div class="song-name" id="songName">futile</div>
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="time-row">
+      <span id="curTime">0:00</span>
+      <span id="durTime">0:00</span>
+   <div class="controls">
+  <button class="btn-play" id="playBtn">▶</button>
+</div>
+    <div class="visualizer" id="viz"></div>
+    <!-- Pour un vrai audio : -->
+    <!-- <audio id="audio" src="ma-chanson.mp3"></audio> -->
+    <audio id="audio" src="act.weba"></audio>
+  </div>
+
+  <!-- ════════════════════════════
+       FLOWER CARDS — modifiez h3 et p
+  ════════════════════════════ -->
+  <section class="flowers-section">
+    <div class="section-label">— looooooooove youuuuuuuuuuu.. —</div>
+    <div class="flowers-grid">
+
+      <div class="flower-card">
+        <svg class="flower-svg" width="60" height="60" viewBox="0 0 60 60">
+          <g transform="translate(30,30)">
+            <ellipse rx="4" ry="18" fill="#c7314a" opacity="0.9" transform="rotate(0)"/>
+            <ellipse rx="4" ry="18" fill="#c7314a" opacity="0.85" transform="rotate(51)"/>
+            <ellipse rx="4" ry="18" fill="#c7314a" opacity="0.8" transform="rotate(102)"/>
+            <ellipse rx="4" ry="18" fill="#c7314a" opacity="0.85" transform="rotate(153)"/>
+            <ellipse rx="4" ry="18" fill="#c7314a" opacity="0.9" transform="rotate(204)"/>
+            <ellipse rx="4" ry="18" fill="#c7314a" opacity="0.85" transform="rotate(255)"/>
+            <circle r="5" fill="#8b1a2a"/>
+            <line x1="0" y1="-18" x2="6" y2="-24" stroke="#f0d8de" stroke-width="0.8" opacity="0.7"/>
+            <line x1="0" y1="-18" x2="-6" y2="-24" stroke="#f0d8de" stroke-width="0.8" opacity="0.7"/>
+          </g>
+        </svg>
+        <h3>dont know what to say </h3>  <!-- ← modifiez le titre -->
+        <p> i loved you so much miss lhjr , shkrn 3la kulshiiii...</p>  <!-- ← modifiez la description -->
+      </div>
+
+      <div class="flower-card">
+        <svg class="flower-svg" width="60" height="60" viewBox="0 0 60 60">
+          <g transform="translate(30,30)">
+            <ellipse rx="3" ry="16" fill="#e85070" opacity="0.7" transform="rotate(30)"/>
+            <ellipse rx="3" ry="16" fill="#e85070" opacity="0.8" transform="rotate(90)"/>
+            <ellipse rx="3" ry="16" fill="#e85070" opacity="0.7" transform="rotate(150)"/>
+            <ellipse rx="3" ry="16" fill="#e85070" opacity="0.7" transform="rotate(210)"/>
+            <ellipse rx="3" ry="16" fill="#e85070" opacity="0.8" transform="rotate(270)"/>
+            <ellipse rx="3" ry="16" fill="#e85070" opacity="0.7" transform="rotate(330)"/>
+            <circle r="4" fill="#5a0f1a"/>
+            <circle r="8" fill="none" stroke="#c7314a" stroke-width="0.6" stroke-dasharray="2,3" opacity="0.5"/>
+          </g>
+        </svg>
+        <h3>💌</h3>
+        <p>dont be sad <br>
+        dont be sad </p>
+      </div>
+
+      <div class="flower-card">
+        <svg class="flower-svg" width="60" height="60" viewBox="0 0 60 60">
+          <g transform="translate(30,32)">
+            <path d="M0,-20 Q8,-8 0,0 Q-8,-8 0,-20" fill="#c7314a" opacity="0.9" transform="rotate(0)"/>
+            <path d="M0,-20 Q8,-8 0,0 Q-8,-8 0,-20" fill="#c7314a" opacity="0.8" transform="rotate(72)"/>
+            <path d="M0,-20 Q8,-8 0,0 Q-8,-8 0,-20" fill="#c7314a" opacity="0.85" transform="rotate(144)"/>
+            <path d="M0,-20 Q8,-8 0,0 Q-8,-8 0,-20" fill="#c7314a" opacity="0.8" transform="rotate(216)"/>
+            <path d="M0,-20 Q8,-8 0,0 Q-8,-8 0,-20" fill="#c7314a" opacity="0.9" transform="rotate(288)"/>
+            <circle r="3" fill="#e8d5d5" opacity="0.9"/>
+            <line x1="0" y1="-20" x2="0" y2="-26" stroke="#f0d8de" stroke-width="0.7" opacity="0.6"/>
+            <line x1="0" y1="-20" x2="4" y2="-27" stroke="#f0d8de" stroke-width="0.7" opacity="0.6"/>
+            <line x1="0" y1="-20" x2="-4" y2="-27" stroke="#f0d8de" stroke-width="0.7" opacity="0.6"/>
+          </g>
+        </svg>
+        <h3>jmm</h3>
+        <p>smo7aaat bzzzf bzzzzf bzzzzzzzzzzzfffffff 💔</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════════════════════
+       LETTRE / MESSAGE PRINCIPAL
+       Modifiez le texte ci-dessous
+  ════════════════════════════ -->
+  <div class="letter">
+    <div class="letter-greeting">— For u zhrrr —</div>  <!-- ← destinataire -->
+    <div class="letter-body">
+      zahraae lhjr.. my love<br>
+      mkn3rf mngol w m3ndi wjeh ngolk shi 7aja dssrt w 3yqt bzzzf.<br><br>
+      deritk bzzf w ghdertk w hlktk kter manti asln mhloka w zdtlk ana,<br>
+      rbbi li 3alem b l7ala li wssltk liha w ana nadem bbzzzzff —<br>
+      <span class="highlight">i m so sorryyy jmm .</span><br><br>
+      had site howa akhir haja nqdr nkhlihalk.<br>
+      qlbt 3la lycoris mlqitch , deja ila bghitha wajda makaynach .<br>
+      w kaytba3o ghir les bulbs ( lbodor li kytghrso).<br>
+      m3rftx 3lsh gtlk 3la lycoris wlkin m3rft mngollll :<br><br>
+      <span class="highlight">" this is My last act of love." smo7aaaaaaaaaaaaat. </span>
+    </div>
+    <div class="letter-sign">— yavu</div>  <!-- ← signature -->
+    <div class="wax-seal">✦</div>
+  </div>
+
+  <!-- ════════════════════════════
+       EMOTION TAGS
+       Ajoutez / supprimez des spans
+       Classes : e1 (rouge) | e2 (rose) | e3 (blanc rosé)
+  ════════════════════════════ -->
+  <section class="emotions">
+    <div class="divider"></div><br>
+    <div class="emotion-row">
+      <span class="emotion-tag e1">zhr</span>
+      <span class="emotion-tag e1">anistizist</span>
+      <span class="emotion-tag e1">lhjrrrr</span>
+    </div>
+    <div class="emotion-row">
+      <span class="emotion-tag e2">lhurt</span>
+      <span class="emotion-tag e2">lgelb</span>
+      <span class="emotion-tag e2">trop tard</span>
+    </div>
+    
+  </section>
+
+  <!-- ════════════════════════════
+       FOOTER — modifiez le texte
+  ════════════════════════════ -->
+  <footer class="footer">
+    <div>彼岸花開彼岸謝 — la fleur de l'autre rive</div>
+    <br>
+    <div style="font-size:10px;color:#2a1018;">fait avec amour · lycoris radiata</div>
+  </footer>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════ -->
+<script>
+/* ── Falling petals ── */
+const canvas = document.getElementById('petals');
+const ctx = canvas.getContext('2d');
+let W, H, petals = [];
+
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize(); window.addEventListener('resize', resize);
+
+function makePetal() {
+  return {
+    x: Math.random() * W, y: -40,
+    size: Math.random() * 10 + 6,
+    speed: Math.random() * 1.2 + 0.5,
+    drift: Math.random() * 0.8 - 0.4,
+    rot: Math.random() * 360,
+    rotS: (Math.random() - 0.5) * 2,
+    alpha: Math.random() * 0.6 + 0.2,
+    hue: Math.random() * 30 + 340
+  };
+}
+for (let i = 0; i < 20; i++) { const p = makePetal(); p.y = Math.random() * H; petals.push(p); }
+
+function drawPetal(p) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rot * Math.PI / 180);
+  ctx.globalAlpha = p.alpha;
+  ctx.fillStyle = `hsl(${p.hue},70%,50%)`;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, p.size / 2, p.size, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function tick() {
+  ctx.clearRect(0, 0, W, H);
+  petals.forEach(p => {
+    p.y += p.speed; p.x += p.drift; p.rot += p.rotS;
+    if (p.y > H + 50) Object.assign(p, makePetal());
+    drawPetal(p);
+  });
+  if (Math.random() < 0.03 && petals.length < 50) petals.push(makePetal());
+  requestAnimationFrame(tick);
+}
+tick();
+
+/* ── Stars ── */
+const starCanvas = document.createElement('canvas');
+starCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1';
+document.body.appendChild(starCanvas);
+const sc = starCanvas.getContext('2d');
+let stars = [];
+
+function makeStars() {
+  starCanvas.width = innerWidth; starCanvas.height = innerHeight; stars = [];
+  for (let i = 0; i < 120; i++) {
+    stars.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+      r: Math.random() * 1.2 + 0.2, a: Math.random(), sp: Math.random() * 0.01 + 0.003 });
+  }
+}
+makeStars(); window.addEventListener('resize', makeStars);
+
+function drawStars() {
+  sc.clearRect(0, 0, starCanvas.width, starCanvas.height);
+  stars.forEach(s => {
+    s.a += s.sp;
+    sc.globalAlpha = 0.2 + 0.6 * Math.abs(Math.sin(s.a));
+    sc.fillStyle = '#f0d8de';
+    sc.beginPath(); sc.arc(s.x, s.y, s.r, 0, Math.PI * 2); sc.fill();
+  });
+  requestAnimationFrame(drawStars);
+}
+drawStars();
+
+/* ── Visualizer ── */
+const viz = document.getElementById('viz');
+const heights = [12, 20, 16, 24, 18, 28, 14, 22, 18, 26, 12, 20, 16];
+heights.forEach((h, i) => {
+  const b = document.createElement('div');
+  b.className = 'bar';
+  b.style.setProperty('--h', h + 'px');
+  b.style.setProperty('--sp', (0.4 + Math.random() * 0.5) + 's');
+  b.style.animationDelay = (i * 0.06) + 's';
+  viz.appendChild(b);
+});
+
+/* ── REAL AUDIO PLAYER (FIXED) ── */
+const audio       = document.getElementById('audio');
+const playBtn     = document.getElementById('playBtn');
+const progressFill= document.getElementById('progressFill');
+const progressBar = document.getElementById('progressBar');
+const curTime     = document.getElementById('curTime');
+const durTime     = document.getElementById('durTime');
+const playerEl    = document.getElementById('player');
+
+function fmt(s) {
+  const m = Math.floor(s / 60);
+  return m + ':' + ('0' + Math.floor(s % 60)).slice(-2);
+}
+
+/* ▶ PLAY / PAUSE */
+playBtn.addEventListener('click', () => {
+  if (audio.paused) {
+    audio.play();
+    playBtn.textContent = '⏸';
+    playerEl.querySelector('.visualizer').classList.add('playing');
+  } else {
+    audio.pause();
+    playBtn.textContent = '▶';
+    playerEl.querySelector('.visualizer').classList.remove('playing');
+  }
+});
+
+/* ⏱ UPDATE TIME */
+audio.addEventListener('timeupdate', () => {
+  const progress = (audio.currentTime / audio.duration) * 100;
+  progressFill.style.width = progress + '%';
+  curTime.textContent = fmt(audio.currentTime);
+});
+
+/* ⏱ LOAD DURATION */
+audio.addEventListener('loadedmetadata', () => {
+  durTime.textContent = fmt(audio.duration);
+});
+
+/* CLICK PROGRESS */
+progressBar.addEventListener('click', e => {
+  const percent = e.offsetX / progressBar.offsetWidth;
+  audio.currentTime = percent * audio.duration;
+});
+</script>
+
+</body>
+</html>
